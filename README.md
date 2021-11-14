@@ -9,4 +9,5 @@ GHDTranslator.py -d C:\Users\%username%\AppData\Local\GitHubDesktop\app-2.9.5-be
 ```
 
 ·支持各种操作系统
+
 ·动态翻译，版本更新后无需等待汉化制作，可直接汉化
