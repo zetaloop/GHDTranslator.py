@@ -1,5 +1,5 @@
-version_info='2.9.5 beta1'
-update_info='20211114'
+version_info='2.9.5 beta2'
+update_info='20211120'
 
 import os, sys, getopt, shutil
 
@@ -13,7 +13,7 @@ Thank you for using!\n'''
 helpword='''\nUsage: '''+os.path.split(sys.argv[0])[1]+''' -d <app folder>\n
 -d --dir <dir>    Target dir, GHD app folder like 'app-2.8.4'
 -r --restore      Restore from auto-backup file, using with --dir
--c --check_update Check for updates from github (mirror fastgit)
+-u --update Check for updates from github (mirror fastgit)
 -h --help         Show this message
 -v --version      Show version info\n'''
 help_text=title_text+helpword
@@ -90,7 +90,7 @@ def check_update():
 # Get cmdline args
 if sys.argv[1:]==[]:print(error_text('No options.'));sys.exit(1)
 try:
-    opts,args=getopt.getopt(sys.argv[1:],'hvd:rc',['help','version','dir=','restore','check_update'])
+    opts,args=getopt.getopt(sys.argv[1:],'hvd:ru',['help','version','dir=','restore','update'])
 except getopt.GetoptError:
     print(error_text('Unknown options.')) # Unknown args
     sys.exit(1)
@@ -106,7 +106,7 @@ for opt,arg in opts:
     elif opt in ('-v','--version'):
         print(version_text)
         sys.exit(0)
-    elif opt in ('-c','--check_update'):
+    elif opt in ('-u','--update'):
         check_update()
         sys.exit(0)
     elif opt in ('-r','--restore'):
