@@ -1,30 +1,18 @@
 version_info='2.9.5 beta2'
 update_info='20211120'
 
-import os, sys, getopt, shutil, alive_progress, readchar
+import os, sys, getopt, shutil, re, alive_progress, readchar
 from alive_progress.utils.colors import * # MAGIC
 # BLUE GREEN YELLOW RED MAGENTA CYAN ORANGE BOLD DIM IT(ALIC) UNDER(LINE)
 
-# Texts
-title_text='=== '+ORANGE('[GitHub Desktop Translator zh_CN] ')+ORANGE_IT('(ver '+version_info+')')+' ==='
-version_text=YELLOW('>>> Version\n')+'='*42+BOLD('\n GitHub Desktop translation '+version_info)+'''
-   --by Zetaspace '''+update_info+f'''\n
- {CYAN("Link: GitHub.com/ZetaSp/GHDTranslator.py")}\n
- Thank you for using!\n'''+'='*42
-help_text=BOLD(os.path.split(sys.argv[0])[1])+f''' {ITALIC("<options>")}
--y                Automatically finish everything
--d --dir {ITALIC("<dir>")}    Specify a target dir, GHD app folder like 'app-2.8.4'
--r --restore      Restore from auto-backup file, using with --dir
--u --update       Check for updates from github (mirror fastgit)
--h --help         Show this message
--v --version      Show version info'''
-
 # Formats
+modetxt=lambda x:YELLOW('\n>>> '+x)
+mode=lambda x:print(modetxt(x))
 error=lambda x:print(RED('[error] '+x))
 warning=lambda x:print(ORANGE('[warning] ')+x)
 info=lambda x:print(CYAN('[info] ')+x)
 ok=lambda x:print(GREEN('[ok] ')+x)
-error_text=lambda what:title_text+'\n'+RED(what)+'\n'+help_text # Outdated
+confirm=lambda x:input1(YELLOW('[confirm] ')+x+' [Y/n] ').upper()=='Y'
 errorcmd=lambda x:{'':None}[(str(error(x))+str(print('\n'+help_text)))[:0]]
 inputo=input
 def input1(x=''):
@@ -42,6 +30,20 @@ def input(x=''):
         print('')
         y=''
     return y
+
+# Texts
+title_text='=== '+ORANGE('[GitHub Desktop Translator zh_CN] ')+ORANGE_IT('(ver '+version_info+')')+' ==='
+version_text='\n'+'='*42+BOLD('\n GitHub Desktop translation '+version_info)+'''
+   --by Zetaspace '''+update_info+f'''\n
+ {CYAN("Link: GitHub.com/ZetaSp/GHDTranslator.py")}\n
+ Thank you for using!\n'''+'='*42
+help_text=BOLD(os.path.split(sys.argv[0])[1])+f''' {ITALIC("<options>")}
+-y                Automatically finish everything
+-d --dir {ITALIC("<dir>")}    Specify a target dir, app folder like \'app-'''+version_info.replace(' ','-')+'''\'
+-r --restore      Restore from auto-backup file, using with --dir
+-u --update       Check for updates from github (mirror fastgit)
+-h --help         Show this message
+-v --version      Show version info'''
 
 # Check version code
 try:
@@ -69,7 +71,7 @@ def check_update():
             import requests
             bar()
             try:
-                req=requests.get(api)
+                req=requests.get(api,timeout=(2,2))
                 bar()
             except:
                 # Any connection error.
@@ -99,11 +101,11 @@ def check_update():
             except:
                 # Not a number???
                 warning(BOLD('LOWER VERSION')+'('+update+') available.')
-                if input1(YELLOW('[confirm] ')+'Update? [y/n]').upper()!='Y':
+                if confirm('Update?'):
+                    ok('Sure.')
+                else:
                     ok('Canceled.')
                     sys.exit(1)
-                else:
-                    ok('Sure.')
             else:
                 if diff:
                     # Larger update
@@ -111,11 +113,11 @@ def check_update():
                 else:
                     # Smaller update?
                     warning(BOLD('LOWER VERSION')+'('+update+') available.')
-                    if input1(YELLOW('[confirm] ')+'Update? [y/n] ').upper()!='Y':
+                    if confirm('Update?'):
+                        ok('Sure.')
+                    else:
                         ok('Canceled.')
                         sys.exit(1)
-                    else:
-                        ok('Sure.')
             if action=='open':
                 try:
                     import webbrowser
@@ -134,46 +136,91 @@ def check_update():
 
 '=== Main ==='
 # Get cmdline args
-if sys.argv[1:]==[]:sys.argv[1:]=['-h']
-    # Defaultly modify to the newest version?
+#if sys.argv[1:]==[]:sys.argv[1:]=['-h']
+if sys.argv[-1]=='-d':sys.argv+=['""']
 try:
     opts,args=getopt.getopt(sys.argv[1:],'hvyd:ru',['help','version','dir=','restore','update'])
 except getopt.GetoptError:
     errorcmd('Unknown options: '+' '.join(sys.argv[1:])) # Unknown args
     sys.exit(1)
 
+autopatch=False
 restore=False
 appdir=''
 exist=os.path.exists
 copy=shutil.copy2
 for opt,arg in opts:
     if opt in ('-h','--help'):
-        print(YELLOW('>>> Help\n')+help_text)
+        print(modetxt('Help\n')+help_text)
         sys.exit(0)
     elif opt in ('-v','--version'):
-        print(version_text)
+        print(modetxt('Version')+version_text)
         sys.exit(0)
     elif opt in ('-u','--update'):
         check_update()
         sys.exit(0)
     elif opt in ('-y'):
-        continue
-        #AUTO
+        autopatch=True
     elif opt in ('-r','--restore'):
         restore=True
     elif opt in ('-d','--dir'):
         appdir=arg
-if appdir=='':
-    appdir=
-    #errorcmd('Dir needed.') # Blank target dir
-    sys.exit(0)
+mode('Locate')
 if not type(appdir)is str:
-    errorcmd('Error dir: '+str(appdir)) # Not str
+    error('Error dir: '+str(appdir)) # Not str
     sys.exit(0)
-if(appdir[0]=="'"and appdir[-1]=="'")or(appdir[0]=='"'and appdir[-1]=='"'):
-    appdir=appdir[1:-1] # Cut outer ''
-if not exist(os.path.abspath(appdir)+'\\resources\\app'):
-    errorcmd('Not exist dir: '+appdir)  # Not exist target dir
+if appdir=='-y':
+    appdir,autopatch='',True
+if appdir!='':
+    while(appdir[0]=="'"and appdir[-1]=="'")or(appdir[0]=='"'and appdir[-1]=='"'):
+        appdir=appdir[1:-1]
+        if appdir=='':break
+if appdir=='':
+    # Blank target dir
+    while True:
+        if sys.platform=='win32':PATH=';'
+        elif sys.platform=='darwin' or sys.platform=='linux' or sys.platform=='cygwin':PATH=':'
+        else:break
+        PATH=re.split(PATH,os.getenv('PATH'))
+        for i in PATH:
+            if i=='':continue
+            if(i[0]=="'"and i[-1]=="'")or(i[0]=='"'and i[-1]=='"'):i=i[1:-1]   # Cut ''
+            if not exist(i):continue
+            p=os.path.abspath(i)
+            if 'github'in os.listdir(p):    # ...\GitHubDesktop\bin\github file
+                appdir=os.path.abspath(os.path.join(p,'..'))
+        if appdir!='':
+            if(appdir[0]=="'"and appdir[-1]=="'")or(appdir[0]=='"'and appdir[-1]=='"'):appdir=appdir[1:-1] # Cut ''
+            dirs=[]
+            for i in os.listdir(appdir):
+                if exist(os.path.abspath(os.path.join(appdir,i))+'\\resources\\app'):
+                    dirs+=[i]
+            appdir=os.path.abspath(os.path.join(appdir,sorted(dirs,reverse=True)[0]))
+            del dirs
+            info('Found GitHub Desktop in \''+appdir+'\'')
+            if autopatch:break
+            if confirm('Patch this one?'):
+                break
+        confirm
+        appdir=input('Please type in your GitHub Desktop install path, like \'app-'+version_info.replace(' ','-')+'\' or \'GitHubDesktop\':\n> ')
+        if appdir=='':error('Not typing.');sys.exit(0)
+        break
+if(appdir[0]=="'"and appdir[-1]=="'")or(appdir[0]=='"'and appdir[-1]=='"'):appdir=appdir[1:-1] # Cut ''
+if not exist(appdir):
+    error('Not exist: '+appdir)  # Target dir not exist
+    sys.exit(0)
+if not exist(os.path.abspath(appdir)+'\\resources\\app')and exist(appdir):
+    dirs=[]
+    for i in os.listdir(appdir):
+        if exist(os.path.abspath(os.path.join(appdir,i))+'\\resources\\app'):
+            dirs+=[i]
+    else:
+        error('No any GitHub Desktop here :(')  # Not exist target dir
+        sys.exit(0)
+    appdir=os.path.abspath(os.path.join(appdir,sorted(dirs,reverse=True)[0]))
+    del dirs
+if not exist(appdir):
+    error('Not exist: '+appdir)  # Not exist target dir
     sys.exit(0)
 
 # Basically Verified
@@ -186,21 +233,25 @@ jsdir1b=jsdir1+'.bak'
 extra=['\\static\\cherry-pick-intro.png']
 if restore: # Restore
     if not(exist(jsdir0b)and exist(jsdir1b)):
-        print(error_text("Can't find js files to restore."))    # Not the right target dir
+        print(error("Can't find js files to restore.")) # Not the right target dir
     else:
         # Verified, Restore
-        print(title_text+'\nRestore files.\n')
-        print('Restoring main.js, renderer.js...')
-        copy(jsdir0b,jsdir0)
-        copy(jsdir1b,jsdir1)
-        print('Restoring extra files...')
-        for f in extra:
-            print('  '+f)
-            copy(appdir+f+'.bak',appdir+f)
-        print('Restore finished.')
+        mode('Restore')
+        with alive_progress.alive_bar(3,title=CYAN('[info] Restoring'),spinner=None,enrich_print=False) as bar:
+            bar()
+            ok(os.path.split(jsdir0)[-1])
+            copy(jsdir0b,jsdir0)
+            bar()
+            ok(os.path.split(jsdir1)[-1])
+            copy(jsdir1b,jsdir1)
+            bar()
+            for f in extra:
+                ok(f)
+                copy(appdir+f+'.bak',appdir+f)
+        ok('Restore finished.')
 else:   # Patch
     if not(exist(jsdir0)and exist(jsdir1)):
-        print(error_text("Can't find js files to patch."))  # Not the right target dir
+        print(error("Can't find js files to patch."))  # Not the right target dir
     else:
         if sum(map(lambda f:int(not exist(resdir+f)),extra))!=0:
             resdir=os.path.abspath(os.path.split(sys.argv[0])[0])   # Can't find in current dir,
