@@ -19,7 +19,7 @@ def input1(x=''):
     try:
         print(x,end='',flush=True)
         y=readchar.readchar().decode()
-        print('')
+        print(y)
     except:
         y=''
     return y
@@ -232,11 +232,13 @@ jsdir0b=jsdir0+'.bak'
 jsdir1b=jsdir1+'.bak'
 extra=['\\static\\cherry-pick-intro.png']
 if restore: # Restore
+    mode('Restore')
+    info('Source: '+appdir)
+    info('Target: '+appdir)
     if not(exist(jsdir0b)and exist(jsdir1b)):
         print(error("Can't find js files to restore.")) # Not the right target dir
     else:
-        # Verified, Restore
-        mode('Restore')
+        # ===Verified, restore it===
         with alive_progress.alive_bar(3,title=CYAN('[info] Restoring'),spinner=None,enrich_print=False) as bar:
             bar()
             ok(os.path.split(jsdir0)[-1])
@@ -250,57 +252,20 @@ if restore: # Restore
                 copy(appdir+f+'.bak',appdir+f)
         ok('Restore finished.')
 else:   # Patch
+    mode('Patch')
+    info('Source: '+resdir)
+    info('Target: '+appdir)
     if not(exist(jsdir0)and exist(jsdir1)):
         print(error("Can't find js files to patch."))  # Not the right target dir
     else:
         if sum(map(lambda f:int(not exist(resdir+f)),extra))!=0:
             resdir=os.path.abspath(os.path.split(sys.argv[0])[0])   # Can't find in current dir,
         if sum(map(lambda f:int(not exist(resdir+f)),extra))!=0:    # Try py file dir
-            print(error_text("Can't find extra resources."))    # Can't find resources
+            error("Can't find extra resources.")    # Can't find resources
         else:
-            # Verified, Patch
-            print(title_text+'\nPatch files.\n')
-            print('Target dir: '+appdir+'\nResource dir: '+resdir)
-
-            # Backup
-            print('\nBackuping...')
-            if not exist(jsdir0b):
-                print('  \\main.js ==> bak')
-                copy(jsdir0,jsdir0b)
-            if not exist(jsdir1b):
-                print('  \\renderer.js ==> bak')
-                copy(jsdir1,jsdir1b)
-            for f in extra:
-                if not exist(appdir+f+'.bak'):
-                    print('  '+f+' ==> bak')
-                    copy(appdir+f,appdir+f+'.bak')
-
-            # Restore all
-            print('\nRestoring...')
-            print('  \\main.js <== bak')
-            copy(jsdir0b,jsdir0)
-            print('  \\renderer.js <== bak')
-            copy(jsdir1b,jsdir1)
-            for f in extra:
-                print('  '+f+' <== bak')
-                copy(appdir+f+'.bak',appdir+f)
-
-            # Patch
-            print('\nPatch start.')
+            # ===Verified, patch start===
             
-            #  Copy extra files
-            print('\nCopying extra files...')
-            for f in extra:
-                print('  '+f+' <== Translated')
-                copy(resdir+f,appdir+f)
-                
-            #  Patch js
-            print('\nTranslating js...')
-            js=['','']
-            with open(jsdir0,'r',encoding='utf-8')as j:js[0]=j.read()
-            with open(jsdir1,'r',encoding='utf-8')as j:js[1]=j.read()
-            
-            import re
+            # Word replacing tool
             w=0
             def sub(mode):
                 global w,js
@@ -309,10 +274,10 @@ else:   # Patch
                 elif mode[0]=='#':
                     return None
                 elif mode=='mainjs':  # main.js
-                    print('  [main.js]')
+                    #print('  [main.js]')
                     w=0
                 elif mode=='renjs': # renderer.js
-                    print('  [renderer.js]')
+                    #print('  [renderer.js]')
                     w=1
                 elif '>'in mode:
                     m=mode.split('>')
@@ -341,21 +306,23 @@ else:   # Patch
                         nword=n
                     if x=='^'or(x!='!' and not('\\'in m or'*'in m or'?'in m)):
                         c=js[w].count(m)
-                        print('  '+m+' ==> '+n+' ['+str(c)+']')
+                        #print('  '+m+' ==> '+n+' ['+str(c)+']')
                         if not c==0:
                             js[w]=js[w].replace(m,n)
                         else:
                             print('  '+'^'*len('  '+m+' ==> '+n+' ['+str(c)+']'))
                     else:
                         c=len(re.findall(m,js[w]))
-                        print('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']')
+                        #print('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']')
                         if not c==0:
                             js[w]=re.sub(m,n,js[w])
                         else:
-                            print('  '+'^'*len('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']'))
+                            skip
+                            #print('  '+'^'*len('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']'))
                 else:
                     return None
-                
+
+            # Translation
             a='''
 mainjs
 default branch>默认分支
@@ -535,15 +502,68 @@ Use system OpenSSH (recommended)>使用系统 OpenSSH (推荐)
 Usage>使用情况
 !"Help GitHub Desktop improve by submitting"(.*)"usage stats"\)>lambda x:'"通过发送"'+x.group(1)+'"使用情况统计信息")," 来帮助改进 GitHub Desktop"'
 
-'''
-            for x in a.split('\n'):
-                if x!='':sub(x)
-            
-            print('Write back.')
-            with open(jsdir0,'w',encoding='utf-8')as j:j.write(js[0])
-            with open(jsdir1,'w',encoding='utf-8')as j:j.write(js[1])
+'''.split('\n')
+            while''in a:a.remove('')
 
-            print('\nDone.')
+            # Backup
+            print(CYAN_IT('\n--Backup:'))
+            x=sum(map(int,([not exist(jsdir0b),not exist(jsdir1b)]+list(map(lambda x:not exist(appdir+x+'.bak'),extra)))))
+            with alive_progress.alive_bar(x,title=CYAN('[info] Backuping'),spinner=None,enrich_print=False) as bar:
+                if not exist(jsdir0b):
+                    copy(jsdir0,jsdir0b)
+                    ok('\\main.js ==> bak')
+                    bar()
+                if not exist(jsdir1b):
+                    copy(jsdir1,jsdir1b)
+                    ok('\\renderer.js ==> bak')
+                    bar()
+                for f in extra:
+                    if not exist(appdir+f+'.bak'):
+                        copy(appdir+f,appdir+f+'.bak')
+                        ok(f+' ==> bak')
+                        bar()
+
+            # Restore all
+            print(CYAN_IT('\n--Restore:'))
+            with alive_progress.alive_bar(len(extra)+2,title=CYAN('[info] Restoring'),spinner=None,enrich_print=False) as bar:
+                copy(jsdir0b,jsdir0)
+                ok('\\main.js <== bak')
+                bar()
+                copy(jsdir1b,jsdir1)
+                ok('\\renderer.js <== bak')
+                bar()
+                for f in extra:
+                    copy(appdir+f+'.bak',appdir+f)
+                    ok(f+' <== bak')
+                    bar()
+
+            #  Copy extra files
+            print(CYAN_IT('\n--Patch extra files:'))
+            with alive_progress.alive_bar(len(extra),title=CYAN('[info] Copying  '),spinner=None,enrich_print=False) as bar:
+                for f in extra:
+                    bar()
+                    copy(resdir+f,appdir+f)
+                    ok(f+' <== Translated')
+                
+            #  Patch js
+            print(CYAN_IT('\n--Patch js:'))
+            with alive_progress.alive_bar(len(a)+2,title=CYAN('[info] Modifying'),spinner=None,enrich_print=False) as bar:
+                js=['','']
+                with open(jsdir0,'r',encoding='utf-8')as j:js[0]=j.read()
+                with open(jsdir1,'r',encoding='utf-8')as j:js[1]=j.read()
+                info('File loaded.')
+                bar()
+                for x in a:
+                    sub(x)
+                    bar()
+                
+                with open(jsdir0,'w',encoding='utf-8')as j:j.write(js[0])
+                with open(jsdir1,'w',encoding='utf-8')as j:j.write(js[1])
+                info('File written.')
+                bar()
+
+            print()
+            ok('Done.')
             sys.exit(0)
 
 # EOF
