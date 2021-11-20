@@ -1,5 +1,6 @@
 version_info='2.9.5 beta2'
 update_info='20211120'
+DEBUG=True
 
 import os, sys, getopt, shutil, re, alive_progress, readchar
 from alive_progress.utils.colors import * # MAGIC
@@ -274,10 +275,10 @@ else:   # Patch
                 elif mode[0]=='#':
                     return None
                 elif mode=='mainjs':  # main.js
-                    #print('  [main.js]')
+                    if DEBUG:info('[main.js]')
                     w=0
                 elif mode=='renjs': # renderer.js
-                    #print('  [renderer.js]')
+                    if DEBUG:info('[renderer.js]')
                     w=1
                 elif '>'in mode:
                     m=mode.split('>')
@@ -292,8 +293,13 @@ else:   # Patch
                         n+='…'
                     if m[0]!='!'and m[0]!='^':
                         x=''
-                        m='"'+m+'"'
-                        n='"'+n+'"'
+                        if m[0]=="'":
+                            m=m[1:]
+                            m="'"+m+"'"
+                            n="'"+n+"'"
+                        else:
+                            m='"'+m+'"'
+                            n='"'+n+'"'
                         nword=n
                     elif m[0]=='!':
                         x=m[0]
@@ -306,19 +312,20 @@ else:   # Patch
                         nword=n
                     if x=='^'or(x!='!' and not('\\'in m or'*'in m or'?'in m)):
                         c=js[w].count(m)
-                        #print('  '+m+' ==> '+n+' ['+str(c)+']')
                         if not c==0:
+                            if DEBUG:info(m+CYAN(' ==> ')+n+CYAN(' ['+str(c)+']'))
                             js[w]=js[w].replace(m,n)
                         else:
-                            print('  '+'^'*len('  '+m+' ==> '+n+' ['+str(c)+']'))
+                            if DEBUG:error(m+' ==> '+n+' ['+str(c)+']')
+                            if DEBUG:error('^'*len('  '+m+' ==> '+n+' ['+str(c)+']'))
                     else:
                         c=len(re.findall(m,js[w]))
-                        #print('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']')
                         if not c==0:
+                            if DEBUG:info('REGEX: '+m+CYAN(' ==> ')+nword+CYAN(' ['+str(c)+']'))
                             js[w]=re.sub(m,n,js[w])
                         else:
-                            skip
-                            #print('  '+'^'*len('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']'))
+                            if DEBUG:error('REGEX: '+m+' ==> '+nword+' ['+str(c)+']')
+                            if DEBUG:error('  '+'^'*len('  REGEX: '+m+' ==> '+nword+' ['+str(c)+']'))
                 else:
                     return None
 
@@ -412,6 +419,10 @@ Failed opening logs directory>无法打开日志文件夹
 
 renjs
 !"Press "(.*)" to exit fullscreen">lambda x:'"按 "'+x.group(1)+'" 退出全屏"'
+^renderButton("minimize">renderButton("最小化"
+^renderButton("maximize">renderButton("最大化"
+^renderButton("restore">renderButton("还原"
+^renderButton("close">renderButton("关闭"
 
 Ok>确定
 Cancel>取消
@@ -421,6 +432,9 @@ Delete>删除
 Continue>继续
 Yes>是
 No>否
+
+Add co-authors>添加协作者
+Remove co-authors>移除协作者
 
 Name>名称
 Email>邮箱
