@@ -1,98 +1,145 @@
 version_info='2.9.5 beta2'
 update_info='20211120'
 
-import os, sys, getopt, shutil
+import os, sys, getopt, shutil, alive_progress, readchar
+from alive_progress.utils.colors import * # MAGIC
+# BLUE GREEN YELLOW RED MAGENTA CYAN ORANGE BOLD DIM IT(ALIC) UNDER(LINE)
 
 # Texts
-title_text='[GitHub Desktop Translator zh_CN] (ver '+version_info+')'
-title_text='='*len(title_text)+'\n'+title_text+'\n'+'='*len(title_text)
-version_text=title_text+'''\nGitHub Desktop translation '''+version_info+'''
-  --by Zetaspace '''+update_info+'''\n
-link: github.com/ZetaSp/GHDTranslator.py\n
-Thank you for using!\n'''
-helpword='''\nUsage: '''+os.path.split(sys.argv[0])[1]+''' -d <app folder>\n
--d --dir <dir>    Target dir, GHD app folder like 'app-2.8.4'
+title_text='=== '+ORANGE('[GitHub Desktop Translator zh_CN] ')+ORANGE_IT('(ver '+version_info+')')+' ==='
+version_text=YELLOW('>>> Version\n')+'='*42+BOLD('\n GitHub Desktop translation '+version_info)+'''
+   --by Zetaspace '''+update_info+f'''\n
+ {CYAN("Link: GitHub.com/ZetaSp/GHDTranslator.py")}\n
+ Thank you for using!\n'''+'='*42
+help_text=BOLD(os.path.split(sys.argv[0])[1])+f''' {ITALIC("<options>")}
+-y                Automatically finish everything
+-d --dir {ITALIC("<dir>")}    Specify a target dir, GHD app folder like 'app-2.8.4'
 -r --restore      Restore from auto-backup file, using with --dir
--u --update Check for updates from github (mirror fastgit)
+-u --update       Check for updates from github (mirror fastgit)
 -h --help         Show this message
--v --version      Show version info\n'''
-help_text=title_text+helpword
-error_text=lambda what:title_text+'\n'+what+'\n'+helpword
+-v --version      Show version info'''
 
+# Formats
+error=lambda x:print(RED('[error] '+x))
+warning=lambda x:print(ORANGE('[warning] ')+x)
+info=lambda x:print(CYAN('[info] ')+x)
+ok=lambda x:print(GREEN('[ok] ')+x)
+error_text=lambda what:title_text+'\n'+RED(what)+'\n'+help_text # Outdated
+errorcmd=lambda x:{'':None}[(str(error(x))+str(print('\n'+help_text)))[:0]]
+inputo=input
+def input1(x=''):
+    try:
+        print(x,end='',flush=True)
+        y=readchar.readchar().decode()
+        print('')
+    except:
+        y=''
+    return y
+def input(x=''):
+    try:
+        y=inputo(x) # Never interrupt this
+    except:
+        print('')
+        y=''
+    return y
+
+# Check version code
+try:
+    if len(str(int(update_info)))!=8:raise ValueError
+except:
+    error("Version '"+update_info+"' is wrong. It should be a proper date.")
+    sys.exit(999)
+
+# Print title
+print(title_text)
+
+# Function
 def check_update():
-    print(title_text)
-    print('Checking for updates...\n')
-    import requests
-    # Not using GitHub API, because I'm always "rate limited"...
-    # Using raw version.json instead.
-    
-    #api='https://raw.githubusercontent.com/ZetaSp/GHDTranslator.py/main/version.json'    
-    # Githubusercontent.com is unreachable in China; using mirror fastgit.org.
-    api='https://raw.fastgit.org/ZetaSp/GHDTranslator.py/main/version.json'
+    try:
+        print(YELLOW('>>> Check update'))
+        # Not using GitHub API, because I'm always "rate limited"...
+        # Using raw version.json instead.
+        #api='https://raw.githubusercontent.com/ZetaSp/GHDTranslator.py/main/version.json'    
+        # Githubusercontent.com is unreachable in China; using mirror fastgit.org.
+        api='https://raw.fastgit.org/ZetaSp/GHDTranslator.py/main/version.json'
 
-    print('Current: ver '+version_info+' update '+update_info)
-    try:
-        req=requests.get(api)
-    except:
-        # Any connection error.
-        print('Connection failed.\nPlease check it manually.')
-        sys.exit(1)
-    try:
-        req=req.json()
-        version=req['version']
-        update=req['update']
-        download=req['download']
-        action=req['action']
-    except:
-        # Any parsing error.
-        print('Update data error.\nPlease check it manually.')
-        sys.exit(1)
-    print('Newest:  ver '+version+' update '+update+'\n')
-    if update_info==update:
-        print('You are using the newest version!')
-        sys.exit(0)
-    else:
-        # Different update
-        try:
-            diff=int(update)>int(update_info)
-        except:
-            # Not a number???
-            print('Different version('+update+') available.')
-            if input('Update? [y/n]').upper()!='Y':
-                print('Canceled.')
+        with alive_progress.alive_bar(3, title=CYAN('[info] Connecting'), spinner='dots_waves', bar=None, enrich_print=False, stats=False, elapsed=False) as bar:
+            bar()
+            info('Current: ver '+version_info+' update '+update_info)
+            import requests
+            bar()
+            try:
+                req=requests.get(api)
+                bar()
+            except:
+                # Any connection error.
+                bar()
+                error('Connection failed. Please check it manually.')
+                raise KeyboardInterrupt
+            try:
+                req=req.json()
+                version=req['version']
+                update=req['update']
+                download=req['download']
+                action=req['action']
+            except:
+                # Any parsing error.
+                bar()
+                error('Update data error.\nPlease check it manually.')
                 sys.exit(1)
-            else:
-                print('Sure.')
+            info('Newest:  ver '+version+' update '+update+'\n')
+            
+        if update_info==update:
+            ok('You are using the newest version!')
+            sys.exit(0)
         else:
-            if diff:
-                # Larger update
-                print('New version('+update+') available!')
-            else:
-                # Smaller update?
-                print('Different version('+update+') available.')
-                if input('Update? [y/n]').upper()!='Y':
-                    print('Canceled.')
+            # Different update
+            try:
+                diff=int(update)>int(update_info)
+            except:
+                # Not a number???
+                warning(BOLD('LOWER VERSION')+'('+update+') available.')
+                if input1(YELLOW('[confirm] ')+'Update? [y/n]').upper()!='Y':
+                    ok('Canceled.')
                     sys.exit(1)
                 else:
-                    print('Sure.')
-        if action=='open':
-            try:
-                import webbrowser
-                webbrowser.get()
-            except:
-                # Web browser not available. Plz open manually.
-                print('Goto: '+download)
+                    ok('Sure.')
             else:
-                print('Opening: '+download)
-                webbrowser.open(download)
+                if diff:
+                    # Larger update
+                    ok('New version('+update+') available!')
+                else:
+                    # Smaller update?
+                    warning(BOLD('LOWER VERSION')+'('+update+') available.')
+                    if input1(YELLOW('[confirm] ')+'Update? [y/n] ').upper()!='Y':
+                        ok('Canceled.')
+                        sys.exit(1)
+                    else:
+                        ok('Sure.')
+            if action=='open':
+                try:
+                    import webbrowser
+                    webbrowser.get()
+                except:
+                    # Web browser not available. Plz open manually.
+                    info('Goto: '+BLUE_UNDER(download))
+                else:
+                    info('Opening: '+download)
+                    webbrowser.open(download)
+            sys.exit(1)
+    except KeyboardInterrupt:
+        print('')
+        ok('Canceled.')
         sys.exit(1)
 
+'=== Main ==='
 # Get cmdline args
-if sys.argv[1:]==[]:print(error_text('No options.'));sys.exit(1)
+if sys.argv[1:]==[]:sys.argv[1:]=['-h']
+    # Defaultly modify to the newest version?
 try:
-    opts,args=getopt.getopt(sys.argv[1:],'hvd:ru',['help','version','dir=','restore','update'])
+    opts,args=getopt.getopt(sys.argv[1:],'hvyd:ru',['help','version','dir=','restore','update'])
 except getopt.GetoptError:
-    print(error_text('Unknown options.')) # Unknown args
+    errorcmd('Unknown options: '+' '.join(sys.argv[1:])) # Unknown args
     sys.exit(1)
 
 restore=False
@@ -101,7 +148,7 @@ exist=os.path.exists
 copy=shutil.copy2
 for opt,arg in opts:
     if opt in ('-h','--help'):
-        print(help_text)
+        print(YELLOW('>>> Help\n')+help_text)
         sys.exit(0)
     elif opt in ('-v','--version'):
         print(version_text)
@@ -109,20 +156,24 @@ for opt,arg in opts:
     elif opt in ('-u','--update'):
         check_update()
         sys.exit(0)
+    elif opt in ('-y'):
+        continue
+        #AUTO
     elif opt in ('-r','--restore'):
         restore=True
     elif opt in ('-d','--dir'):
         appdir=arg
 if appdir=='':
-    print(error_text('Dir needed.'))  # Blank target dir
+    appdir=
+    #errorcmd('Dir needed.') # Blank target dir
     sys.exit(0)
 if not type(appdir)is str:
-    print(error_text('Error dir: '+str(appdir)))    # Not str
+    errorcmd('Error dir: '+str(appdir)) # Not str
     sys.exit(0)
 if(appdir[0]=="'"and appdir[-1]=="'")or(appdir[0]=='"'and appdir[-1]=='"'):
-    appdir=appdir[1:-1] # Cut '...'
+    appdir=appdir[1:-1] # Cut outer ''
 if not exist(os.path.abspath(appdir)+'\\resources\\app'):
-    print(error_text('Not exist dir: '+appdir))  # Not exist target dir
+    errorcmd('Not exist dir: '+appdir)  # Not exist target dir
     sys.exit(0)
 
 # Basically Verified
