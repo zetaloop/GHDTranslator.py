@@ -1,3 +1,6 @@
+> [!WARNING]  
+> ### 该旧项目已停止，请使用 [zetaloop/Desktop](https://github.com/zetaloop/Desktop)
+
 # GHDTranslator.py
 
 GitHub Desktop 汉化（上次误删后，咕了好久的说
